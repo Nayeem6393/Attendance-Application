@@ -16,21 +16,25 @@ export const register = async (req, res) => {
       return res.status(400).json({ error: 'All fields are required.' });
     }
 
+    const cleanEmail = email.toLowerCase().trim();
+    const cleanMobile = mobile.trim();
+    const cleanEmployeeId = employee_id.toUpperCase().trim();
+
     // Check if user already exists (by email, mobile, or employee_id)
     const existingCheck = await db.execute({
       sql: 'SELECT id, email, mobile, employee_id FROM users WHERE email = ? OR mobile = ? OR employee_id = ?',
-      args: [email.toLowerCase(), mobile, employee_id.toUpperCase()]
+      args: [cleanEmail, cleanMobile, cleanEmployeeId]
     });
 
     if (existingCheck.rows.length > 0) {
       const match = existingCheck.rows[0];
-      if (match.email === email.toLowerCase()) {
+      if (match.email === cleanEmail) {
         return res.status(400).json({ error: 'An account with this email already exists.' });
       }
-      if (match.mobile === mobile) {
+      if (match.mobile === cleanMobile) {
         return res.status(400).json({ error: 'An account with this mobile number already exists.' });
       }
-      if (match.employee_id === employee_id.toUpperCase()) {
+      if (match.employee_id === cleanEmployeeId) {
         return res.status(400).json({ error: 'An account with this Employee ID already exists.' });
       }
     }
@@ -49,18 +53,18 @@ export const register = async (req, res) => {
       args: [
         userId,
         name,
-        email.toLowerCase(),
-        mobile,
+        cleanEmail,
+        cleanMobile,
         passwordHash,
         department,
         designation,
-        employee_id.toUpperCase(),
+        cleanEmployeeId,
         now,
         now
       ]
     });
 
-    await logAudit(userId, 'REGISTER', `Employee account registered for ${name} (ID: ${employee_id}). Status: pending.`, req);
+    await logAudit(userId, 'REGISTER', `Employee account registered for ${name} (ID: ${cleanEmployeeId}). Status: pending.`, req);
 
     return res.status(201).json({
       message: 'Employee registered successfully! Your account is pending administrator approval.',
@@ -83,11 +87,23 @@ export const login = async (req, res) => {
 
     const queryStr = loginIdentifier.toLowerCase().trim();
 
-    // Query user by email OR mobile
-    const userResult = await db.execute({
+    // Query user by email OR mobile (exact match first)
+    let userResult = await db.execute({
       sql: 'SELECT * FROM users WHERE email = ? OR mobile = ?',
       args: [queryStr, queryStr]
     });
+
+    // If no user found, and the input looks like a phone number, try auto-healing lookup
+    if (userResult.rows.length === 0) {
+      const digitsOnly = queryStr.replace(/\D/g, '');
+      if (digitsOnly.length >= 10) {
+        const last10 = digitsOnly.slice(-10);
+        userResult = await db.execute({
+          sql: 'SELECT * FROM users WHERE mobile LIKE ? OR mobile = ?',
+          args: [`%${last10}`, digitsOnly]
+        });
+      }
+    }
 
     if (userResult.rows.length === 0) {
       return res.status(401).json({ error: 'Invalid credentials.' });

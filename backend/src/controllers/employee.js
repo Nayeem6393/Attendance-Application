@@ -84,7 +84,7 @@ export const updateEmployee = async (req, res) => {
     }
 
     const checkUser = await db.execute({
-      sql: 'SELECT id, name FROM users WHERE id = ?',
+      sql: 'SELECT id, name, mobile, department, designation FROM users WHERE id = ?',
       args: [id]
     });
 

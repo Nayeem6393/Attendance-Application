@@ -236,7 +236,12 @@ export const Register = () => {
                   <label className="form-label">Designation</label>
                   <div style={{ position: 'relative' }}>
                     <User size={16} color="var(--text-secondary)" style={{ position: 'absolute', left: '14px', top: '50%', transform: 'translateY(-50%)' }} />
-                    <input type="text" name="designation" className="form-control" style={{ paddingLeft: '40px', minHeight: '44px' }} placeholder="e.g. Frontend Engineer" value={formData.designation} onChange={handleInputChange} required disabled={isSubmitting} />
+                    <select name="designation" className="form-control" style={{ paddingLeft: '40px', appearance: 'none', background: 'var(--bg-card)', color: 'var(--text-primary)', minHeight: '44px' }} value={formData.designation} onChange={handleInputChange} required disabled={isSubmitting}>
+                      <option value="">Select Designation</option>
+                      <option value="Ground Staff">Ground Staff</option>
+                      <option value="Office Worker">Office Worker</option>
+                      <option value="Desk Worker">Desk Worker</option>
+                    </select>
                   </div>
                 </div>
 

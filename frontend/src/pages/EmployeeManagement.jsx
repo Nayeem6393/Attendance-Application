@@ -1,7 +1,7 @@
 import React, { useEffect, useState } from 'react';
 import api from '../utils/api.js';
 import { useAuth } from '../context/AuthContext.jsx';
-import { Users, Filter, Trash2, Fingerprint, Search, ShieldCheck, ShieldX, Camera, X } from 'lucide-react';
+import { Users, Filter, Trash2, Fingerprint, Search, ShieldCheck, ShieldX, Camera, X, Edit2 } from 'lucide-react';
 
 export const EmployeeManagement = () => {
   const { showToast } = useAuth();
@@ -70,6 +70,88 @@ export const EmployeeManagement = () => {
     }
     setRefPhotoModalUser(null);
     setRefPhotoBlobUrl(null);
+  };
+
+  // Edit Employee Modal State
+  const [editModalUser, setEditModalUser] = useState(null);
+  const [editFormData, setEditFormData] = useState({
+    name: '',
+    mobile: '',
+    department: '',
+    designation: '',
+    customDesignation: '',
+    isCustomDesignation: false
+  });
+  const [editSubmitting, setEditSubmitting] = useState(false);
+
+  const handleOpenEdit = (emp) => {
+    const standardDesignations = ['Ground Staff', 'Office Worker', 'Desk Worker'];
+    const isCustom = emp.designation && !standardDesignations.includes(emp.designation);
+    
+    setEditModalUser(emp);
+    setEditFormData({
+      name: emp.name || '',
+      mobile: emp.mobile || '',
+      department: emp.department || '',
+      designation: isCustom ? '__custom__' : (emp.designation || ''),
+      customDesignation: isCustom ? emp.designation : '',
+      isCustomDesignation: isCustom
+    });
+  };
+
+  const handleCloseEdit = () => {
+    setEditModalUser(null);
+  };
+
+  const handleEditInputChange = (e) => {
+    const { name, value } = e.target;
+    setEditFormData(prev => {
+      const updated = { ...prev, [name]: value };
+      if (name === 'designation') {
+        if (value === '__custom__') {
+          updated.isCustomDesignation = true;
+        } else {
+          updated.isCustomDesignation = false;
+        }
+      }
+      return updated;
+    });
+  };
+
+  const handleEditSubmit = async (e) => {
+    e.preventDefault();
+    if (!editModalUser) return;
+
+    if (!editFormData.name || !editFormData.mobile || !editFormData.department) {
+      showToast('Please fill in Name, Mobile, and Department.', 'error');
+      return;
+    }
+
+    const finalDesignation = editFormData.isCustomDesignation 
+      ? editFormData.customDesignation 
+      : editFormData.designation;
+
+    if (!finalDesignation) {
+      showToast('Please select or enter a Designation.', 'error');
+      return;
+    }
+
+    setEditSubmitting(true);
+    try {
+      await api.put(`/employees/${editModalUser.id}`, {
+        name: editFormData.name,
+        mobile: editFormData.mobile,
+        department: editFormData.department,
+        designation: finalDesignation
+      });
+      showToast('Employee details updated successfully!');
+      handleCloseEdit();
+      fetchEmployees();
+    } catch (err) {
+      showToast(err.message || 'Failed to update employee details.', 'error');
+    } finally {
+      setEditSubmitting(false);
+    }
   };
 
   const handleDeleteEmployee = async (id, employeeName) => {
@@ -277,6 +359,17 @@ export const EmployeeManagement = () => {
                             </button>
                           )}
 
+                          {/* Edit Details */}
+                          <button
+                            onClick={() => handleOpenEdit(emp)}
+                            className="btn btn-secondary"
+                            style={{ padding: '6px 10px', fontSize: '0.75rem', gap: '4px', minHeight: '44px' }}
+                            title="Edit Details"
+                          >
+                            <Edit2 size={14} />
+                            Edit
+                          </button>
+
                           {/* Delete Employee */}
                           <button
                             onClick={() => handleDeleteEmployee(emp.id, emp.name)}
@@ -401,6 +494,16 @@ export const EmployeeManagement = () => {
                           </button>
                         )}
 
+                        {/* Edit Details */}
+                        <button
+                          onClick={() => handleOpenEdit(emp)}
+                          className="btn btn-secondary"
+                          style={{ width: '100%', minHeight: '44px', display: 'flex', alignItems: 'center', gap: '6px' }}
+                        >
+                          <Edit2 size={14} />
+                          <span>Edit Employee Details</span>
+                        </button>
+
                         {/* Delete Employee */}
                         <button
                           onClick={() => handleDeleteEmployee(emp.id, emp.name)}
@@ -482,6 +585,160 @@ export const EmployeeManagement = () => {
                 <span style={{ fontSize: '0.8rem', color: 'var(--status-absent)' }}>Failed to load image.</span>
               )}
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* Edit Details Overlay Modal */}
+      {editModalUser && (
+        <div
+          style={{
+            position: 'fixed',
+            inset: 0,
+            background: 'rgba(7,10,19,0.85)',
+            backdropFilter: 'blur(8px)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 1000,
+            padding: '20px'
+          }}
+        >
+          <div className="glass-panel" style={{ width: '100%', maxWidth: '480px', padding: '28px', position: 'relative', textAlign: 'left' }}>
+            <button
+              onClick={handleCloseEdit}
+              type="button"
+              style={{ position: 'absolute', top: '20px', right: '20px', background: 'none', border: 'none', color: 'var(--text-secondary)', cursor: 'pointer' }}
+            >
+              <X size={20} />
+            </button>
+
+            <h3 style={{ fontFamily: 'var(--font-display)', fontSize: '1.4rem', fontWeight: 800, marginBottom: '20px', display: 'flex', alignItems: 'center', gap: '8px', borderBottom: '1px solid var(--border-glass)', paddingBottom: '12px' }}>
+              <Edit2 size={20} color="var(--primary)" />
+              <span>Edit Employee Details</span>
+            </h3>
+
+            <form onSubmit={handleEditSubmit}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr', gap: '16px' }}>
+                
+                <div className="form-group">
+                  <label className="form-label" style={{ marginBottom: '6px', fontSize: '0.85rem' }}>Full Name</label>
+                  <input
+                    type="text"
+                    name="name"
+                    className="form-control"
+                    style={{ minHeight: '44px' }}
+                    value={editFormData.name}
+                    onChange={handleEditInputChange}
+                    required
+                    disabled={editSubmitting}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" style={{ marginBottom: '6px', fontSize: '0.85rem' }}>Mobile Number</label>
+                  <input
+                    type="tel"
+                    name="mobile"
+                    className="form-control"
+                    style={{ minHeight: '44px' }}
+                    value={editFormData.mobile}
+                    onChange={handleEditInputChange}
+                    required
+                    disabled={editSubmitting}
+                  />
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" style={{ marginBottom: '6px', fontSize: '0.85rem' }}>Department</label>
+                  <select
+                    name="department"
+                    className="form-control"
+                    style={{ appearance: 'none', background: 'var(--bg-card)', color: 'var(--text-primary)', minHeight: '44px' }}
+                    value={editFormData.department}
+                    onChange={handleEditInputChange}
+                    required
+                    disabled={editSubmitting}
+                  >
+                    <option value="">Select Department</option>
+                    <option value="Engineering">Engineering</option>
+                    <option value="Human Resources">Human Resources</option>
+                    <option value="Finance">Finance</option>
+                    <option value="Marketing">Marketing</option>
+                    <option value="Sales">Sales</option>
+                    <option value="Operations">Operations</option>
+                    <option value="Quality Assurance">Quality Assurance</option>
+                  </select>
+                </div>
+
+                <div className="form-group">
+                  <label className="form-label" style={{ marginBottom: '6px', fontSize: '0.85rem' }}>Designation</label>
+                  <select
+                    name="designation"
+                    className="form-control"
+                    style={{ appearance: 'none', background: 'var(--bg-card)', color: 'var(--text-primary)', minHeight: '44px' }}
+                    value={editFormData.designation}
+                    onChange={handleEditInputChange}
+                    required
+                    disabled={editSubmitting}
+                  >
+                    <option value="">Select Designation</option>
+                    <option value="Ground Staff">Ground Staff</option>
+                    <option value="Office Worker">Office Worker</option>
+                    <option value="Desk Worker">Desk Worker</option>
+                    <option value="__custom__">Custom / Other (Type below)...</option>
+                  </select>
+                </div>
+
+                {editFormData.isCustomDesignation && (
+                  <div className="form-group" style={{ animation: 'fadeIn 0.2s ease-out' }}>
+                    <label className="form-label" style={{ marginBottom: '6px', fontSize: '0.85rem', color: 'var(--primary)' }}>Custom Designation Name</label>
+                    <input
+                      type="text"
+                      name="customDesignation"
+                      placeholder="e.g. Security Supervisor"
+                      className="form-control"
+                      style={{ minHeight: '44px', borderColor: 'var(--primary)' }}
+                      value={editFormData.customDesignation}
+                      onChange={handleEditInputChange}
+                      required={editFormData.isCustomDesignation}
+                      disabled={editSubmitting}
+                    />
+                  </div>
+                )}
+
+              </div>
+
+              <div style={{ display: 'flex', gap: '12px', marginTop: '24px', borderTop: '1px solid var(--border-glass)', paddingTop: '16px', justifyContent: 'flex-end' }}>
+                <button
+                  type="button"
+                  onClick={handleCloseEdit}
+                  className="btn btn-secondary"
+                  style={{ minHeight: '44px', padding: '0 20px' }}
+                  disabled={editSubmitting}
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  style={{ minHeight: '44px', padding: '0 24px', display: 'flex', alignItems: 'center', gap: '8px' }}
+                  disabled={editSubmitting}
+                >
+                  {editSubmitting ? (
+                    <>
+                      <div className="spinner" style={{ width: '16px', height: '16px' }}></div>
+                      <span>Saving...</span>
+                    </>
+                  ) : (
+                    <>
+                      <Edit2 size={16} />
+                      <span>Save Changes</span>
+                    </>
+                  )}
+                </button>
+              </div>
+            </form>
           </div>
         </div>
       )}
