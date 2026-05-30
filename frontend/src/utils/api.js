@@ -7,7 +7,7 @@ const getApiBaseUrl = () => {
   return `${protocol}//${hostname}:5000/api`;
 };
 
-const BASE_URL = getApiBaseUrl();
+const BASE_URL = import.meta.env.VITE_API_URL || getApiBaseUrl();
 
 /**
  * Robust fetch API wrapper that automatically attaches the JWT Auth token
